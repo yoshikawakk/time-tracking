@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { StudyRecord } from "../App";
+import { supabase } from "../lib/supabase";
 
 type Props = {
   date: string;
@@ -21,6 +22,7 @@ export default function TimerModal({
 
   useEffect(() => {
     if (!running) return;
+
     intervalRef.current = window.setInterval(() => {
       setElapsed((prev) => prev + 1);
     }, 1000);
@@ -42,7 +44,7 @@ export default function TimerModal({
     setRunning(true);
   };
 
-  const stop = () => {
+  const stop = async () => {
     if (!startTime) return;
 
     const endTime = new Date();
@@ -50,8 +52,26 @@ export default function TimerModal({
       (endTime.getTime() - startTime.getTime()) / 1000
     );
 
+    const startStr = formatClock(startTime);
+    const endStr = formatClock(endTime);
+
+    // 🔥 Supabase保存
+    const { error } = await supabase.from("time-tracking").insert([
+      {
+        date: date,
+        start_time: startStr,
+        end_time: endStr,
+      },
+    ]);
+
+    if (error) {
+      console.error("Supabase保存エラー:", error);
+    }
+
+    // 🔥 ローカルstate更新
     setStudyData((prev) => {
       const dayData = prev[date] || { total: 0, sessions: [] };
+
       return {
         ...prev,
         [date]: {
@@ -60,8 +80,8 @@ export default function TimerModal({
             ...dayData.sessions,
             {
               title,
-              start: formatClock(startTime),
-              end: formatClock(endTime),
+              start: startStr,
+              end: endStr,
               duration,
             },
           ],
@@ -79,12 +99,17 @@ export default function TimerModal({
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(
+      2,
+      "0"
+    )}:${String(s).padStart(2, "0")}`;
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
       <div className="bg-white text-black p-6 rounded-xl w-80">
+
         {!running && (
           <input
             type="text"
@@ -100,13 +125,28 @@ export default function TimerModal({
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={stop}>停止</button>
-          <button onClick={start}>開始</button>
+          <button
+            onClick={stop}
+            className="bg-red-500 text-white py-2 rounded"
+          >
+            停止
+          </button>
+
+          <button
+            onClick={start}
+            className="bg-green-500 text-white py-2 rounded"
+          >
+            開始
+          </button>
         </div>
 
-        <button onClick={onClose} className="w-full mt-4 bg-gray-200">
+        <button
+          onClick={onClose}
+          className="w-full mt-4 bg-gray-200 py-2 rounded"
+        >
           閉じる
         </button>
+
       </div>
     </div>
   );

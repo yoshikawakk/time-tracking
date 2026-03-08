@@ -3,6 +3,7 @@ import Calendar from "./components/Calendar";
 import DayView from "./components/DayView";
 import TimerModal from "./components/TimerModal";
 import FabButton from "./components/FabButton";
+import { supabase } from "./lib/supabase";
 
 export type Session = {
   title: string;
@@ -23,6 +24,25 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [studyData, setStudyData] = useState<StudyRecord>({});
   const [showTimer, setShowTimer] = useState(false);
+
+  // 🔥 Supabase保存
+  const saveStudyTime = async (date: string, start: string, end: string) => {
+    const { data, error } = await supabase
+      .from("time-tracking")
+      .insert([
+        {
+          date: date,
+          start_time: start,
+          end_time: end,
+        },
+      ]);
+
+    if (error) {
+      console.error("保存エラー:", error);
+    } else {
+      console.log("保存成功:", data);
+    }
+  };
 
   const changeMonth = (offset: number) => {
     setCurrentDate((prev) => {
@@ -65,16 +85,20 @@ export default function App() {
             onChangeMonth={changeMonth}
           />
 
-          {/* 🔥 月別集計表示 */}
+          {/* 月別集計 */}
           <div className="mt-6">
             <h2 className="text-lg mb-2">今月の科目別合計</h2>
+
             {Object.entries(monthlyTotals).map(([title, total]) => {
               const h = Math.floor(total / 3600);
               const m = Math.floor((total % 3600) / 60);
+
               return (
                 <div key={title} className="flex justify-between text-sm">
                   <span>{title}</span>
-                  <span>{h}時間 {m}分</span>
+                  <span>
+                    {h}時間 {m}分
+                  </span>
                 </div>
               );
             })}
@@ -94,8 +118,9 @@ export default function App() {
             setShowTimer(true);
           } else {
             const today = new Date();
-            const dateString =
-              `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+            const dateString = `${today.getFullYear()}-${
+              today.getMonth() + 1
+            }-${today.getDate()}`;
             setSelectedDate(dateString);
             setShowTimer(true);
           }
@@ -112,5 +137,3 @@ export default function App() {
     </div>
   );
 }
-
-
